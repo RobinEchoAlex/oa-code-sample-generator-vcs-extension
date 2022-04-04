@@ -1,28 +1,25 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 const vscode = require('vscode');
 const generator = require('./OACodeSampleGenerator');
 const { Map } = require('immutable');
 const fs = require('fs');
 var path = require("path");
-var operationMap = readJson();
 
+var operationMap = readJson();
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
-
 /**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
+	// This LoC will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "ocsg" is now active!');
 
 	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with  registerCommand
-	// The commandId parameter must match the command field in package.json
+	// Now provide the implementation of the command with registerCommand
+	// The code you place here will be executed every time your command is executed
 	let disposable = vscode.commands.registerCommand('ocsg.azapi', function () {
 		vscode.window.setStatusBarMessage('Generating Azure API Calls...',3000);
 
@@ -46,15 +43,16 @@ function activate(context) {
 			insertText(result)
 		} )
 
-		// The code you place here will be executed every time your command is executed
-		
-
 	});
 
 	context.subscriptions.push(disposable);
 }
 
-
+/**
+ * For the result returned by generator, insert the call snippet into the anchor point and paste the model onto clipboard 
+ * @param {} result 
+ * @returns 
+ */
 function insertText(result){
 		const editor = vscode.window.activeTextEditor;
 
@@ -63,6 +61,7 @@ function insertText(result){
 			return;
 		}
 
+		// Insert the call snippet, according to the current programming language file
 		let snippet
 		let currentlyOpenTabfilePath = vscode.window.activeTextEditor.document.fileName;
 		let currentlyOpenTabExtName = path.extname(currentlyOpenTabfilePath);
@@ -74,6 +73,7 @@ function insertText(result){
 			return
 		}
 
+		// paste the model onto clipboard
 		if(modelMap.has(currentlyOpenTabExtName)){
 			let snippetId = modelMap.get(currentlyOpenTabExtName)
 			model = result[0][snippetId]
@@ -81,23 +81,32 @@ function insertText(result){
 			vscode.window.showErrorMessage("This language is not supported")
 			return
 		}
-
-		vscode.env.clipboard.writeText(model);
-
 		console.log(result[0])
-
+		vscode.env.clipboard.writeText(model);
 		editor.edit((active) => {
 			const pos = editor.selection.anchor;
 			active.insert(pos, snippet);
 		});	
 }
 
+/**
+ * Call the code generator and wait for the result
+ * @param {} spec 
+ * @param {*} singleOperation 
+ * @returns 
+ */
 async function getGen(spec,singleOperation){
 	const { api, generated } =  await generator(spec, singleOperation);
 	console.log(generated);
 	return api,generated
 }
 
+/**
+ * Replace a character at a give position of a string
+ * @param {*} index 
+ * @param {*} replacement 
+ * @returns 
+ */
 String.prototype.replaceAt = function(index, replacement) {
     if (index >= this.length) {
         return this.valueOf();
@@ -107,6 +116,12 @@ String.prototype.replaceAt = function(index, replacement) {
 }
  
 
+/**
+ * For a endpoint with multiple version update, select the latest version of specification.
+ * It is dumbly implemented as select the filepath with largest digit, as the version is named by yyyyMMDD.
+ * @param {} apiList 
+ * @returns 
+ */
 function selectLatestVersion(apiList){
 	let max = 0; 
 	let maxIndex = -1;
@@ -120,6 +135,12 @@ function selectLatestVersion(apiList){
 	return apiList[maxIndex]
 }
 
+/**
+ * For the user input URL, change it to the format of operation ID by string manipulation.
+ * @example https://docs.microsoft.com/en-us/rest/api/resources/resource-groups/create-or-update to ResourceGroup_CreateOrUpdate
+ * @param {} url 
+ * @returns 
+ */
 function urlToOperationId(url){
 	index = url.lastIndexOf('/', url.lastIndexOf('/') - 1);
 	slice = url.slice(index+1)
@@ -138,11 +159,20 @@ function urlToOperationId(url){
 	return slice
 }
 
+/**
+ * Load the operationID-operationSpecificationAddress map from disk. 
+ * @returns 
+ */
 function readJson(){
 	let rawData = fs.readFileSync(path.resolve(__dirname, "operationAddress.json"))
 	return JSON.parse(rawData)
 }
 
+/**
+ * Translate the local absolute address to the remote address which is accessible by user 
+ * @param {*} addr 
+ * @returns 
+ */
 function localToRemoteAddr(addr){
 	addr = "https://raw.githubusercontent.com/Azure/azure-rest-api-specs/main"
 			+ addr.slice(addr.indexOf("\\specification"))

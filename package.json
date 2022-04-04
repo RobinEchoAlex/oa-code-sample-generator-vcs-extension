@@ -1,7 +1,7 @@
 {
   "name": "ocsg",
   "displayName": "OACodeSampleGeneratorForVsc",
-  "description": "THis is a test",
+  "description": "THis is a Azure Code geneator",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.66.0"
